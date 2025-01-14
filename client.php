@@ -19,7 +19,7 @@ echo "<h2>TCP/IP Connection</h2>\n";
 $service_port = 10000;
 
 /* Get the IP address for the target host. */
-$address = "127.0.0.1";
+$address = "192.168.0.23";
 
 /* Create a TCP/IP socket. */
 $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
@@ -43,16 +43,27 @@ if ($result === false) {
 // $out = '';
 
 // $in = readline("Enter something to server: ");
-$in = "ayam";
+$in = "hello";
 
 echo "Sending HTTP HEAD request...";
 socket_write($socket, $in, strlen($in));
 echo "OK.\n";
 
-echo "Reading response:\n\n";
-while ($out = socket_read($socket, 2048)) {
+
+
+do {
+    echo "Reading response:\n\n";
+    $out = socket_read($socket, 2048);
     echo $out;
-}
+
+    echo "\n\nSend message to server: \n\n";
+    $in = readline("Msg to server: ");
+    socket_write($socket, $in, strlen($in));
+
+    if ($in == "shutdown") {
+        break;
+    }
+} while (true);
 
 // $sendTest = "shutdown";
 // socket_send($socket, $sendTest, strlen($sendTest), MSG_OOB);
