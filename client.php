@@ -6,69 +6,34 @@
     <title>Real-time application</title>
 </head>
 <body>
-    
+    <form action="client-socket.php" method="post">
+        <input type="text" name="test" id="">
+        <button type="submit">Hantar</button>
+    </form>
+    <!-- <script src="./socket-conn.js"></script> -->
 </body>
+<script>
+    // console.log(window.location.hostname)
+    // Refer Web Browser API
+    // Create WebSocket connection.
+    const socket = new WebSocket("ws://"+window.location.hostname+":10000");
+    console.log(socket)
+    // Connection opened
+    socket.addEventListener("open", (event) => {
+        console.log("Connection to server has been maded")
+        // socket.send("Hello Server!");
+    });
+
+    socket.addEventListener("error", (event) => {
+        console.log(event)
+        // socket.send("Hello Server!");
+    });
+    
+    // Listen for messages
+    socket.addEventListener("message", (event) => {
+        debugger
+        console.log("Message from server ", event.data);
+    });
+
+</script>
 </html>
-
-<?php
-error_reporting(E_ALL);
-
-echo "<h2>TCP/IP Connection</h2>\n";
-
-/* Get the port for the WWW service. */
-$service_port = 10000;
-
-/* Get the IP address for the target host. */
-$address = "192.168.0.23";
-
-/* Create a TCP/IP socket. */
-$socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-if ($socket === false) {
-    echo "socket_create() failed: reason: " . socket_strerror(socket_last_error()) . "\n";
-} else {
-    echo "OK.\n";
-}
-
-echo "Attempting to connect to '$address' on port '$service_port'...";
-$result = socket_connect($socket, $address, $service_port);
-if ($result === false) {
-    echo "socket_connect() failed.\nReason: ($result) " . socket_strerror(socket_last_error($socket)) . "\n";
-} else {
-    echo "OK.\n";
-}
-
-// $in = "HEAD / HTTP/1.1\r\n";
-// $in .= "Host: www.example.com\r\n";
-// $in .= "Connection: Close\r\n\r\n";
-// $out = '';
-
-// $in = readline("Enter something to server: ");
-$in = "hello";
-
-echo "Sending HTTP HEAD request...";
-socket_write($socket, $in, strlen($in));
-echo "OK.\n";
-
-
-
-do {
-    echo "Reading response:\n\n";
-    $out = socket_read($socket, 2048);
-    echo $out;
-
-    echo "\n\nSend message to server: \n\n";
-    $in = readline("Msg to server: ");
-    socket_write($socket, $in, strlen($in));
-
-    if ($in == "shutdown") {
-        break;
-    }
-} while (true);
-
-// $sendTest = "shutdown";
-// socket_send($socket, $sendTest, strlen($sendTest), MSG_OOB);
-
-// echo "Closing socket...";
-// socket_close($socket);
-// echo "OK.\n\n";
-?>
