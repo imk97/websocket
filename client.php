@@ -21,7 +21,7 @@
     // Connection opened
     socket.addEventListener("open", (event) => {
         console.log("Connection to server has been maded")
-        // socket.send("Hello Server!");
+        socket.send("Hello Server!");
     });
 
     socket.addEventListener("error", (event) => {
@@ -31,7 +31,7 @@
     
     // Listen for messages
     socket.addEventListener("message", (event) => {
-        debugger
+        // debugger
         console.log("Message from server ", event.data);
     });
 

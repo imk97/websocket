@@ -1,4 +1,30 @@
 <?php
+
+function unmask($msg) {
+    // $byte1 = ord($msg)[0]; // 1byte
+    $length = ord($msg[1]) & 127; // 2byte
+
+    if ($length == 126) {
+        $masks = substr($msg, 4, 4);
+        $data = substr($msg, 8);
+    } else if ($length == 127) {
+        $masks = substr($msg, 10, 4);
+        $data = substr($msg, 14);
+    } else {
+        $masks = substr($msg, 2, 4);
+        $data = substr($msg, 6);
+    }
+
+    $text = "";
+    for ($i=0; $i < strlen($data); $i++) { 
+        //bitwise operators
+        //decrypt algorithm, refer rfc4566 documentation
+        $text .= $data[$i] ^ $masks[$i % 4];
+    }
+
+    return $text;
+}
+
 function handshake($req_headers, $socket) {
     // echo $req_headers; exit();
     $headers = array();

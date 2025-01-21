@@ -1,105 +1,104 @@
 <?php
-
-require_once "functions.php";
-
-error_reporting(E_ALL);
-
-/* Allow the script to hang around waiting for connections. */
-set_time_limit(0);
-
-/* Turn on implicit output flushing so we see what we're getting
- * as it comes in. */
-ob_implicit_flush();
-
-$clients = array();
-// $tmpClients = array();
-
-$address = '192.168.0.23';
+$address = '192.168.2.68';
 $port = 10000;
+// $null = NULL;
 
-$sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP) or die("socket_create() failed: reason: " . socket_strerror(socket_last_error()) . "\n");
-array_push($clients, $sock);
-// array_push($clients, $sock);
-// socket_set_nonblock($sock);
+include 'functions.php';
 
-// socket_bind($sock, $address, $port) or die("socket_bind() failed: reason: " . socket_strerror(socket_last_error($sock)) . "\n");
+$sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+socket_set_option($sock, SOL_SOCKET, SO_REUSEADDR, 1);
+socket_bind($sock, $address, $port);
+socket_listen($sock);
 
-if (!socket_bind($sock, $address, $port)) {
-    socketClose($sock);
-    die("socket_bind() failed: reason: " . socket_strerror(socket_last_error($sock)) . "\n");
-}
+$members = [];
+$connections = [];
+$connections[] = $sock;
 
-socket_listen($sock) or die("socket_listen() failed: reason: " . socket_strerror(socket_last_error($sock)) . "\n");
+echo "Listening for new connections on port $port: " . "\n";
 
-// $msg = socket_read($client, 1024);
-// echo "From client : " . $msg . "\n";
-// $out = "Hi, I'm From Server";
-// socket_write($client, $out, strlen($out));
+while(true) {
 
-do {
+    $reads = $writes = $exceptions = $connections;
 
-    $reads = $clients;
-    // var_dump($reads);
+    socket_select(read: $reads, write: $writes, except: $exceptions, seconds: 0);
 
-    if (in_array($sock, $reads)) {
-        $client = socket_accept($sock) or die("socket_accept() failed: reason: " . socket_strerror(socket_last_error($sock)) . "\n");
-        $msg = socket_read($client, 1024);
-        // echo "Message from client: " . $msg;
-        handshake($msg, $client); // Handshake for user use browser
-        // array_push($tmpClients, $client);
+    /**
+     * When a fresh connection comes, $reads will contain $sock, 
+     * which is the Socket instance created with socket_create()
+     * 
+     * For other incoming messages from already connected users,
+     * $reads won't contain $sock, instead the Socket instance created earlier
+     * with socket_accept() will be there
+     */
 
-        array_push($clients, $client);
-        $response = pack_data("Hi, I'm From Server hihi\n\n");
-        socket_write($client, $response, strlen($response));
+    if(in_array($sock, $reads)) {
+        $new_connection = socket_accept($sock);
+        $header = socket_read($new_connection, 1024);
+        handshake($header, $new_connection, $address, $port);
+        $connections[] = $new_connection;
+        $reply = [
+            "type" => "join",
+            "sender" => "Server",
+            "text" => "enter name to join... \n"
+        ];
+        $reply = pack_data(text: json_encode(value: $reply));
+        socket_write(socket: $new_connection, data: $reply, length: strlen(string: $reply));
 
-        // $firstIndex = array_search($sock, $reads);
-        // unset($reads[$firstIndex]);
+        /**
+         * The fresh connection is accepted, with socket_accept
+         * Now remove the $sock from $reads so that it won't go to foreach below
+         */
+        
+        $firstIndex = array_search($sock, $reads);
+        unset($reads[$firstIndex]);
     }
 
+    foreach ($reads as $key => $value) {
 
-    // echo "hello";
-    // $count = 0;
-    // var_dump($reads);
-    // foreach ($reads as $key => $value) {
-    //     $count++;
-    //     echo "hello " . $count;
-    //     $data = socket_read($value, 1024);
-    //     echo "Message from client: " . $data;
-    // }
-    // foreach($reads as $key => $value) {
-    //     echo "hello";
-    //     $data = socket_read($value, 1024);
-    //     echo "Message from client: " . $data;
+        $data = socket_read($value, 1024);
 
-    //     // if (!empty($data)) {
-    //     //     # code...
-    //     // }
-    // }
+        if(!empty($data)) {
+            $message = unmask($data);
+            echo "Client: " .$message;
+            $decoded_message = json_decode($message, true);
+            if ($decoded_message) {
+                if(isset($decoded_message['text'])){
+                    if($decoded_message['type'] === 'join') {
+                        $members[$key] = [
+                            'name' => $decoded_message['sender'],
+                            'connection' => $value
+                        ];
+                    }
+                    $maskedMessage = pack_data($message);
+                    foreach ($members as $mkey => $mvalue) {
+                        socket_write($mvalue['connection'], $maskedMessage, strlen(string: $maskedMessage));
+                    }
+                }
+            }
+        }
 
-    // $msg = socket_read($client, 1024);
+        else if($data === '')  {
+            echo "disconnected " . $key . " \n";
+            unset($connections[$key]);
+            if(array_key_exists($key, $members)) {
+                
+                $message = [
+                    "type" => "left",
+                    "sender" => "Server",
+                    "text" => $members[$key]['name'] . " left the chat \n"
+                ];
+                $maskedMessage = pack_data(json_encode(value: $message));
+                unset($members[$key]);
+                foreach ($members as $mkey => $mvalue) {
+                    socket_write($mvalue['connection'], $maskedMessage, strlen(string: $maskedMessage));
+                }
+            }
+            socket_close($value);
+        }
+    }
 
-    // $reply = "Hi, I'm From Server";
-    // socket_write($client, $reply, strlen($reply));
-
-    
-    // if (isset($msg)) {
-    //     # code...
-    //     // $out = "Hi, I'm From Server";
-    //     socket_write($client, $msg, strlen($msg));
-    // } else {
-    //     echo "Connection is stop";
-    // }
-
-    // $out = "Hi, I'm From Server \n";
-    // // $out = readline("Enter from server: ");
-    // socket_write($client, $out, strlen($out));
-} while (true);
-
-function socketClose($sock) {
-    // socket_close($sock);
-    socket_shutdown($sock, 2);
 }
 
-
+socket_close(socket: $sock);
 
 ?>
