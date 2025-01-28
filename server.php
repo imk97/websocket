@@ -1,5 +1,5 @@
 <?php
-$address = '192.168.2.68';
+$address = '192.168.0.23';
 $port = 10000;
 // $null = NULL;
 
@@ -59,7 +59,7 @@ while(true) {
 
         if(!empty($data)) {
             $message = unmask($data);
-            echo "Client: " .$message;
+            // echo "Client: " .$message;
             $decoded_message = json_decode($message, true);
             if ($decoded_message) {
                 if(isset($decoded_message['text'])){
@@ -67,6 +67,36 @@ while(true) {
                         $members[$key] = [
                             'name' => $decoded_message['sender'],
                             'connection' => $value
+                        ];
+                    } else if ($decoded_message['type'] === 'crud') {
+
+                        $servername = "localhost";
+                        $username = "root";
+                        $password = "root";
+                        $dbname = "wizard";
+
+                        // Create connection
+                        $conn = mysqli_connect($servername, $username, $password, $dbname);
+                        // Check connection
+                        if (!$conn) {
+                        die("Connection failed: " . mysqli_connect_error());
+                        }
+                        $description = $decoded_message["desc"];
+                        // echo $description;
+                        $sql = "UPDATE `notification` SET description='$description' WHERE mId=3";
+
+                        $postDesc = null;
+                        if (mysqli_query($conn, $sql)) {
+                            // echo "Record updated successfully";
+                            $postDesc = $description;
+                        } else {
+                            // echo "Error updating record: " . mysqli_error($conn);
+                            $postDesc = "Data tidak disimpan";
+                        }
+
+                        $members[$key] = [
+                            'name' => $decoded_message['sender'],
+                            'connection' => $value,
                         ];
                     }
                     $maskedMessage = pack_data($message);
